@@ -1,0 +1,39 @@
+[project]
+name = "codex-im-connector"
+version = "0.1.0"
+description = "IM connector for Codex app server"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "aiosqlite>=0.20.0",
+  "openai-codex-app-server-sdk @ git+https://github.com/openai/codex.git@bb536d65bd098d07014fd55154f1199533d8daf3#subdirectory=sdk/python",
+  "greenlet>=3.1.1",
+  "lark-oapi==1.5.5",
+  "pydantic-settings>=2.13.0",
+  "sqlalchemy>=2.0.36",
+  "python-socks==2.8.1"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.0",
+  "pytest-asyncio>=0.24.0",
+]
+
+[project.scripts]
+codex-im-connector = "main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["client", "connector", "core", "db", "model", "service"]
+include = ["app.py", "main.py"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests/unit"]

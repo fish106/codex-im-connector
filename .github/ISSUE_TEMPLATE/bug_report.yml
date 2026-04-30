@@ -1,0 +1,65 @@
+name: Bug report
+description: Report a reproducible bug.
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this issue.
+
+        Please do not include secrets such as `.env` contents, App Secret, tokens, or private cookies.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      placeholder: The bot shows an empty default working directory in /status
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run /status
+        2. Send an image
+        3. Send a follow-up text message
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: The bot should show the default working directory in /status
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: /status shows an empty default working directory
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include anything relevant, such as macOS version, Codex CLI version, Feishu/Lark version, and installation method.
+      placeholder: |
+        macOS:
+        Codex CLI:
+        Feishu/Lark:
+        Install method:
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste only the relevant log lines. Remove secrets before submitting.
+      render: shell
