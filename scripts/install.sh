@@ -22,6 +22,10 @@ tr() {
   case "$LANG_CODE:$key" in
     zh:this_installer_only_supports_macos) echo "此安装脚本仅支持 macOS。" ;;
     en:this_installer_only_supports_macos) echo "This installer only supports macOS." ;;
+    zh:do_not_run_with_sudo) echo "请不要使用 sudo 运行安装脚本。它会安装当前用户的 LaunchAgent，并写入当前用户目录。" ;;
+    en:do_not_run_with_sudo) echo "Do not run the installer with sudo. It installs a LaunchAgent for the current user and writes into that user's home directory." ;;
+    zh:interactive_tty_required) echo "安装脚本需要可交互终端。请不要使用会占用标准输入的方式运行；推荐使用 bash <(curl -fsSL .../install.sh)。" ;;
+    en:interactive_tty_required) echo "The installer requires an interactive terminal. Do not run it in a way that consumes stdin; use bash <(curl -fsSL .../install.sh) instead." ;;
     zh:git_required) echo "需要先安装 git。请先安装 Xcode Command Line Tools 或 git。" ;;
     en:git_required) echo "git is required. Install Xcode Command Line Tools or git first." ;;
     zh:uv_not_found_installing) echo "未找到 uv，正在安装 uv..." ;;
@@ -145,6 +149,14 @@ require_macos() {
   [[ "$(uname -s)" == "Darwin" ]] || die "$(tr this_installer_only_supports_macos)"
 }
 
+require_non_root() {
+  [[ "$(id -u)" -ne 0 ]] || die "$(tr do_not_run_with_sudo)"
+}
+
+require_interactive_tty() {
+  [[ -r /dev/tty ]] || die "$(tr interactive_tty_required)"
+}
+
 require_git() {
   command -v git >/dev/null 2>&1 || die "$(tr git_required)"
 }
@@ -260,7 +272,7 @@ prompt_required() {
   local prompt="$1"
   local value=""
   while true; do
-    read -r -p "$prompt: " value
+    read -r -p "$prompt: " value < /dev/tty
     if [[ -n "${value// }" ]]; then
       printf '%s\n' "$value"
       return
@@ -273,7 +285,7 @@ prompt_optional() {
   local prompt="$1"
   local default_value="$2"
   local value=""
-  read -r -p "$prompt [$default_value]: " value
+  read -r -p "$prompt [$default_value]: " value < /dev/tty
   if [[ -z "${value}" ]]; then
     printf '%s\n' "$default_value"
   else
@@ -367,6 +379,8 @@ install_launch_agent() {
 main() {
   detect_lang
   require_macos
+  require_non_root
+  require_interactive_tty
   require_git
   ensure_uv
   ensure_python
@@ -402,7 +416,7 @@ main() {
 
   local cwd_roots_input
   hint "$(tr explain_allowed_roots)"
-  read -r -p "$(tr prompt_allowed_roots): " cwd_roots_input
+  read -r -p "$(tr prompt_allowed_roots): " cwd_roots_input < /dev/tty
   local allowed_roots_json
   allowed_roots_json="$(json_array_from_csv "$cwd_roots_input")"
 
@@ -439,7 +453,7 @@ main() {
   printf '  %s: %s\n' "$(tr summary_app_secret)" "$(mask_secret "$feishu_app_secret")"
 
   local confirm
-  read -r -p "$(tr proceed_install)" confirm
+  read -r -p "$(tr proceed_install)" confirm < /dev/tty
   if [[ -n "$confirm" && ! "$confirm" =~ ^[Yy]$ ]]; then
     die "$(tr installation_cancelled)"
   fi
