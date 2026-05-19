@@ -26,6 +26,8 @@ tr() {
     en:do_not_run_with_sudo) echo "Do not run the installer with sudo. It installs a LaunchAgent for the current user and writes into that user's home directory." ;;
     zh:interactive_tty_required) echo "安装脚本需要可交互终端。请不要使用会占用标准输入的方式运行；推荐使用 bash <(curl -fsSL .../install.sh)。" ;;
     en:interactive_tty_required) echo "The installer requires an interactive terminal. Do not run it in a way that consumes stdin; use bash <(curl -fsSL .../install.sh) instead." ;;
+    zh:unsupported_sandbox_terminal) echo "检测到当前运行在受限沙箱终端中，无法向 macOS 注册 LaunchAgent。请改用 Terminal.app 或 iTerm2 运行安装脚本。" ;;
+    en:unsupported_sandbox_terminal) echo "A restricted sandboxed terminal was detected. This environment cannot register a macOS LaunchAgent. Run the installer from Terminal.app or iTerm2 instead." ;;
     zh:git_required) echo "需要先安装 git。请先安装 Xcode Command Line Tools 或 git。" ;;
     en:git_required) echo "git is required. Install Xcode Command Line Tools or git first." ;;
     zh:uv_not_found_installing) echo "未找到 uv，正在安装 uv..." ;;
@@ -155,6 +157,12 @@ require_non_root() {
 
 require_interactive_tty() {
   [[ -r /dev/tty ]] || die "$(tr interactive_tty_required)"
+}
+
+require_non_sandboxed_terminal() {
+  if [[ -n "${CODEX_SANDBOX:-}" || "${__CFBundleIdentifier:-}" == "com.openai.codex" ]]; then
+    die "$(tr unsupported_sandbox_terminal)"
+  fi
 }
 
 require_git() {
@@ -381,6 +389,7 @@ main() {
   require_macos
   require_non_root
   require_interactive_tty
+  require_non_sandboxed_terminal
   require_git
   ensure_uv
   ensure_python
