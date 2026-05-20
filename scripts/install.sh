@@ -26,6 +26,8 @@ tr() {
     en:do_not_run_with_sudo) echo "Do not run the installer with sudo. It installs a LaunchAgent for the current user and writes into that user's home directory." ;;
     zh:interactive_tty_required) echo "安装脚本需要可交互终端。请不要使用会占用标准输入的方式运行；推荐使用 bash <(curl -fsSL .../install.sh)。" ;;
     en:interactive_tty_required) echo "The installer requires an interactive terminal. Do not run it in a way that consumes stdin; use bash <(curl -fsSL .../install.sh) instead." ;;
+    zh:unsupported_sandbox_terminal) echo "检测到当前运行在受限沙箱终端中，无法向 macOS 注册 LaunchAgent。请改用 Terminal.app 或 iTerm2 运行安装脚本。" ;;
+    en:unsupported_sandbox_terminal) echo "A restricted sandboxed terminal was detected. This environment cannot register a macOS LaunchAgent. Run the installer from Terminal.app or iTerm2 instead." ;;
     zh:git_required) echo "需要先安装 git。请先安装 Xcode Command Line Tools 或 git。" ;;
     en:git_required) echo "git is required. Install Xcode Command Line Tools or git first." ;;
     zh:uv_not_found_installing) echo "未找到 uv，正在安装 uv..." ;;
@@ -76,6 +78,10 @@ tr() {
     en:dependency_sync_may_have_failed) echo "Dependency installation may have failed. Check the uv output above." ;;
     zh:install_completed) echo "安装已完成。" ;;
     en:install_completed) echo "Installation completed successfully." ;;
+    zh:launch_agent_start_failed) echo "后台服务启动失败，当前安装不可用。" ;;
+    en:launch_agent_start_failed) echo "The background service failed to start. This installation is not usable yet." ;;
+    zh:launch_agent_running) echo "后台服务已经成功启动，安装可正常使用。" ;;
+    en:launch_agent_running) echo "The background service is running successfully. The installation is ready to use." ;;
     zh:launch_agent_login) echo "这是用户级 LaunchAgent，会在你登录后后台自动运行。" ;;
     en:launch_agent_login) echo "The LaunchAgent will run in the background after you log in." ;;
     zh:background_items_notice) echo "如果 macOS 显示后台项目提示，请到“系统设置 > 通用 > 登录项”中查看。" ;;
@@ -155,6 +161,12 @@ require_non_root() {
 
 require_interactive_tty() {
   [[ -r /dev/tty ]] || die "$(tr interactive_tty_required)"
+}
+
+require_non_sandboxed_terminal() {
+  if [[ -n "${CODEX_SANDBOX:-}" || "${__CFBundleIdentifier:-}" == "com.openai.codex" ]]; then
+    die "$(tr unsupported_sandbox_terminal)"
+  fi
 }
 
 require_git() {
@@ -368,12 +380,29 @@ PY
 }
 
 install_launch_agent() {
+  local domain="gui/$(id -u)"
+  local service_target="$domain/$LAUNCHD_LABEL"
+
   mkdir -p "$(dirname "$PLIST_PATH")"
   render_launch_agent_plist
-  launchctl bootout "gui/$(id -u)" "$PLIST_PATH" >/dev/null 2>&1 || true
-  launchctl bootstrap "gui/$(id -u)" "$PLIST_PATH"
-  launchctl enable "gui/$(id -u)/$LAUNCHD_LABEL"
-  launchctl kickstart -k "gui/$(id -u)/$LAUNCHD_LABEL" >/dev/null 2>&1 || true
+  launchctl bootout "$domain" "$PLIST_PATH" >/dev/null 2>&1 || true
+  launchctl enable "$service_target" >/dev/null 2>&1 || true
+
+  if ! launchctl bootstrap "$domain" "$PLIST_PATH"; then
+    if launchctl print "$service_target" >/dev/null 2>&1; then
+      log "$(tr launch_agent_running)"
+    else
+      launchctl load -w "$PLIST_PATH" >/dev/null 2>&1 || true
+      launchctl enable "$service_target" >/dev/null 2>&1 || true
+      if ! launchctl print "$service_target" >/dev/null 2>&1; then
+        die "$(tr launch_agent_start_failed)"
+      fi
+      log "$(tr launch_agent_running)"
+    fi
+  fi
+
+  launchctl enable "$service_target"
+  launchctl kickstart -k "$service_target" >/dev/null 2>&1 || true
 }
 
 main() {
@@ -381,6 +410,7 @@ main() {
   require_macos
   require_non_root
   require_interactive_tty
+  require_non_sandboxed_terminal
   require_git
   ensure_uv
   ensure_python
