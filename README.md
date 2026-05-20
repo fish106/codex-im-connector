@@ -117,10 +117,20 @@ Notes:
 
 ### 2.5 Run the installer
 
-You can use the one-command installer directly:
+Download the installer locally first, then run it.
+
+Use `Terminal.app` or `iTerm2`, and do not run it with `sudo`.
+
+1. Download the installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/fish106/codex-im-connector/main/scripts/install.sh | bash
+curl -fsSL -o install.sh https://raw.githubusercontent.com/fish106/codex-im-connector/main/scripts/install.sh
+```
+
+2. Run the installer:
+
+```bash
+bash install.sh
 ```
 
 The installer will guide you through:

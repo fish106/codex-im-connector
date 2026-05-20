@@ -117,10 +117,20 @@ codex --help
 
 ### 2.5 使用安装脚本
 
-你可以直接使用一键安装脚本：
+建议先把安装脚本下载到本地，再执行安装。
+
+请在 `Terminal.app` 或 `iTerm2` 中执行，不要使用 `sudo`。
+
+1. 下载安装脚本：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/fish106/codex-im-connector/main/scripts/install.sh | bash
+curl -fsSL -o install.sh https://raw.githubusercontent.com/fish106/codex-im-connector/main/scripts/install.sh
+```
+
+2. 执行安装脚本：
+
+```bash
+bash install.sh
 ```
 
 安装脚本会引导你完成以下内容：

@@ -78,6 +78,10 @@ tr() {
     en:dependency_sync_may_have_failed) echo "Dependency installation may have failed. Check the uv output above." ;;
     zh:install_completed) echo "安装已完成。" ;;
     en:install_completed) echo "Installation completed successfully." ;;
+    zh:launch_agent_start_failed) echo "后台服务启动失败，当前安装不可用。" ;;
+    en:launch_agent_start_failed) echo "The background service failed to start. This installation is not usable yet." ;;
+    zh:launch_agent_running) echo "后台服务已经成功启动，安装可正常使用。" ;;
+    en:launch_agent_running) echo "The background service is running successfully. The installation is ready to use." ;;
     zh:launch_agent_login) echo "这是用户级 LaunchAgent，会在你登录后后台自动运行。" ;;
     en:launch_agent_login) echo "The LaunchAgent will run in the background after you log in." ;;
     zh:background_items_notice) echo "如果 macOS 显示后台项目提示，请到“系统设置 > 通用 > 登录项”中查看。" ;;
@@ -376,12 +380,29 @@ PY
 }
 
 install_launch_agent() {
+  local domain="gui/$(id -u)"
+  local service_target="$domain/$LAUNCHD_LABEL"
+
   mkdir -p "$(dirname "$PLIST_PATH")"
   render_launch_agent_plist
-  launchctl bootout "gui/$(id -u)" "$PLIST_PATH" >/dev/null 2>&1 || true
-  launchctl bootstrap "gui/$(id -u)" "$PLIST_PATH"
-  launchctl enable "gui/$(id -u)/$LAUNCHD_LABEL"
-  launchctl kickstart -k "gui/$(id -u)/$LAUNCHD_LABEL" >/dev/null 2>&1 || true
+  launchctl bootout "$domain" "$PLIST_PATH" >/dev/null 2>&1 || true
+  launchctl enable "$service_target" >/dev/null 2>&1 || true
+
+  if ! launchctl bootstrap "$domain" "$PLIST_PATH"; then
+    if launchctl print "$service_target" >/dev/null 2>&1; then
+      log "$(tr launch_agent_running)"
+    else
+      launchctl load -w "$PLIST_PATH" >/dev/null 2>&1 || true
+      launchctl enable "$service_target" >/dev/null 2>&1 || true
+      if ! launchctl print "$service_target" >/dev/null 2>&1; then
+        die "$(tr launch_agent_start_failed)"
+      fi
+      log "$(tr launch_agent_running)"
+    fi
+  fi
+
+  launchctl enable "$service_target"
+  launchctl kickstart -k "$service_target" >/dev/null 2>&1 || true
 }
 
 main() {
